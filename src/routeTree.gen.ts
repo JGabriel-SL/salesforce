@@ -9,50 +9,247 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as PortalRouteImport } from './routes/_portal'
+import { Route as PortalIndexRouteImport } from './routes/_portal/index'
+import { Route as PortalTelemarketingRouteImport } from './routes/_portal/telemarketing'
+import { Route as PortalRelatoriosRouteImport } from './routes/_portal/relatorios'
+import { Route as PortalLimitesRouteImport } from './routes/_portal/limites'
+import { Route as PortalFlowRouteImport } from './routes/_portal/flow'
+import { Route as PortalParceirosIndexRouteImport } from './routes/_portal/parceiros.index'
+import { Route as PortalOrcamentosIndexRouteImport } from './routes/_portal/orcamentos.index'
+import { Route as PortalParceirosCodParcRouteImport } from './routes/_portal/parceiros.$codParc'
+import { Route as PortalOrcamentosNunotaRouteImport } from './routes/_portal/orcamentos.$nunota'
 
-const IndexRoute = IndexRouteImport.update({
+const PortalRoute = PortalRouteImport.update({
+  id: '/_portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalIndexRoute = PortalIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalTelemarketingRoute = PortalTelemarketingRouteImport.update({
+  id: '/telemarketing',
+  path: '/telemarketing',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalRelatoriosRoute = PortalRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalLimitesRoute = PortalLimitesRouteImport.update({
+  id: '/limites',
+  path: '/limites',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalFlowRoute = PortalFlowRouteImport.update({
+  id: '/flow',
+  path: '/flow',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalParceirosIndexRoute = PortalParceirosIndexRouteImport.update({
+  id: '/parceiros/',
+  path: '/parceiros/',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalOrcamentosIndexRoute = PortalOrcamentosIndexRouteImport.update({
+  id: '/orcamentos/',
+  path: '/orcamentos/',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalParceirosCodParcRoute = PortalParceirosCodParcRouteImport.update({
+  id: '/parceiros/$codParc',
+  path: '/parceiros/$codParc',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalOrcamentosNunotaRoute = PortalOrcamentosNunotaRouteImport.update({
+  id: '/orcamentos/$nunota',
+  path: '/orcamentos/$nunota',
+  getParentRoute: () => PortalRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof PortalIndexRoute
+  '/flow': typeof PortalFlowRoute
+  '/limites': typeof PortalLimitesRoute
+  '/relatorios': typeof PortalRelatoriosRoute
+  '/telemarketing': typeof PortalTelemarketingRoute
+  '/orcamentos/$nunota': typeof PortalOrcamentosNunotaRoute
+  '/parceiros/$codParc': typeof PortalParceirosCodParcRoute
+  '/orcamentos/': typeof PortalOrcamentosIndexRoute
+  '/parceiros/': typeof PortalParceirosIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/flow': typeof PortalFlowRoute
+  '/limites': typeof PortalLimitesRoute
+  '/relatorios': typeof PortalRelatoriosRoute
+  '/telemarketing': typeof PortalTelemarketingRoute
+  '/': typeof PortalIndexRoute
+  '/orcamentos/$nunota': typeof PortalOrcamentosNunotaRoute
+  '/parceiros/$codParc': typeof PortalParceirosCodParcRoute
+  '/orcamentos': typeof PortalOrcamentosIndexRoute
+  '/parceiros': typeof PortalParceirosIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_portal': typeof PortalRouteWithChildren
+  '/_portal/flow': typeof PortalFlowRoute
+  '/_portal/limites': typeof PortalLimitesRoute
+  '/_portal/relatorios': typeof PortalRelatoriosRoute
+  '/_portal/telemarketing': typeof PortalTelemarketingRoute
+  '/_portal/': typeof PortalIndexRoute
+  '/_portal/orcamentos/$nunota': typeof PortalOrcamentosNunotaRoute
+  '/_portal/parceiros/$codParc': typeof PortalParceirosCodParcRoute
+  '/_portal/orcamentos/': typeof PortalOrcamentosIndexRoute
+  '/_portal/parceiros/': typeof PortalParceirosIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/flow'
+    | '/limites'
+    | '/relatorios'
+    | '/telemarketing'
+    | '/orcamentos/$nunota'
+    | '/parceiros/$codParc'
+    | '/orcamentos/'
+    | '/parceiros/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/flow'
+    | '/limites'
+    | '/relatorios'
+    | '/telemarketing'
+    | '/'
+    | '/orcamentos/$nunota'
+    | '/parceiros/$codParc'
+    | '/orcamentos'
+    | '/parceiros'
+  id:
+    | '__root__'
+    | '/_portal'
+    | '/_portal/flow'
+    | '/_portal/limites'
+    | '/_portal/relatorios'
+    | '/_portal/telemarketing'
+    | '/_portal/'
+    | '/_portal/orcamentos/$nunota'
+    | '/_portal/parceiros/$codParc'
+    | '/_portal/orcamentos/'
+    | '/_portal/parceiros/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  PortalRoute: typeof PortalRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_portal': {
+      id: '/_portal'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof PortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_portal/': {
+      id: '/_portal/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof PortalIndexRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/_portal/telemarketing': {
+      id: '/_portal/telemarketing'
+      path: '/telemarketing'
+      fullPath: '/telemarketing'
+      preLoaderRoute: typeof PortalTelemarketingRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/_portal/relatorios': {
+      id: '/_portal/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof PortalRelatoriosRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/_portal/limites': {
+      id: '/_portal/limites'
+      path: '/limites'
+      fullPath: '/limites'
+      preLoaderRoute: typeof PortalLimitesRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/_portal/flow': {
+      id: '/_portal/flow'
+      path: '/flow'
+      fullPath: '/flow'
+      preLoaderRoute: typeof PortalFlowRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/_portal/parceiros/': {
+      id: '/_portal/parceiros/'
+      path: '/parceiros'
+      fullPath: '/parceiros/'
+      preLoaderRoute: typeof PortalParceirosIndexRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/_portal/orcamentos/': {
+      id: '/_portal/orcamentos/'
+      path: '/orcamentos'
+      fullPath: '/orcamentos/'
+      preLoaderRoute: typeof PortalOrcamentosIndexRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/_portal/parceiros/$codParc': {
+      id: '/_portal/parceiros/$codParc'
+      path: '/parceiros/$codParc'
+      fullPath: '/parceiros/$codParc'
+      preLoaderRoute: typeof PortalParceirosCodParcRouteImport
+      parentRoute: typeof PortalRoute
+    }
+    '/_portal/orcamentos/$nunota': {
+      id: '/_portal/orcamentos/$nunota'
+      path: '/orcamentos/$nunota'
+      fullPath: '/orcamentos/$nunota'
+      preLoaderRoute: typeof PortalOrcamentosNunotaRouteImport
+      parentRoute: typeof PortalRoute
     }
   }
 }
 
+interface PortalRouteChildren {
+  PortalFlowRoute: typeof PortalFlowRoute
+  PortalLimitesRoute: typeof PortalLimitesRoute
+  PortalRelatoriosRoute: typeof PortalRelatoriosRoute
+  PortalTelemarketingRoute: typeof PortalTelemarketingRoute
+  PortalIndexRoute: typeof PortalIndexRoute
+  PortalOrcamentosNunotaRoute: typeof PortalOrcamentosNunotaRoute
+  PortalParceirosCodParcRoute: typeof PortalParceirosCodParcRoute
+  PortalOrcamentosIndexRoute: typeof PortalOrcamentosIndexRoute
+  PortalParceirosIndexRoute: typeof PortalParceirosIndexRoute
+}
+
+const PortalRouteChildren: PortalRouteChildren = {
+  PortalFlowRoute: PortalFlowRoute,
+  PortalLimitesRoute: PortalLimitesRoute,
+  PortalRelatoriosRoute: PortalRelatoriosRoute,
+  PortalTelemarketingRoute: PortalTelemarketingRoute,
+  PortalIndexRoute: PortalIndexRoute,
+  PortalOrcamentosNunotaRoute: PortalOrcamentosNunotaRoute,
+  PortalParceirosCodParcRoute: PortalParceirosCodParcRoute,
+  PortalOrcamentosIndexRoute: PortalOrcamentosIndexRoute,
+  PortalParceirosIndexRoute: PortalParceirosIndexRoute,
+}
+
+const PortalRouteWithChildren =
+  PortalRoute._addFileChildren(PortalRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  PortalRoute: PortalRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
