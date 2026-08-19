@@ -24,6 +24,7 @@ import type {
   EventoStatus,
   FlowEtapa,
   HistoricoAlteracao,
+  ModalidadeEntrega,
   Parceiro,
   Produto,
   RegraLimite,
@@ -54,6 +55,7 @@ export interface DbState {
   transportes: Transporte[];
   financeiro: TituloFinanceiro[];
   proximoNunota: number;
+  proximoNumNota: number; // NUMNOTA — atribuído na geração da nota (faturamento)
 }
 
 const seed = (): DbState => ({
@@ -69,9 +71,10 @@ const seed = (): DbState => ({
   transportes: transportesMock,
   financeiro: financeiroMock,
   proximoNunota: 100250,
+  proximoNumNota: 4610,
 });
 
-export const dbStore = createStore<DbState>(seed(), "portal_db_v1");
+export const dbStore = createStore<DbState>(seed(), "portal_db_v2");
 
 /* ── infra ───────────────────────────────────────────────── */
 
@@ -202,45 +205,102 @@ export function removerItem(nunota: number, itemId: string, usuario: Usuario): b
 
 /* ── criação / duplicação ────────────────────────────────── */
 
+/** Parametrização por TOP (padrão Sankhya): a TOP escolhida na criação
+ *  define o comportamento comercial do documento. */
+const PARAMETROS_TOP: Record<
+  string,
+  {
+    descricao: string;
+    codTipoNegociacao: string;
+    tipoNegociacao: string;
+    codNatureza: string;
+    natureza: string;
+    modalidadeEntrega: ModalidadeEntrega;
+  }
+> = {
+  "1010": {
+    descricao: "Venda de Mercadoria",
+    codTipoNegociacao: "TN-01",
+    tipoNegociacao: "Venda Interna",
+    codNatureza: "1.01.001",
+    natureza: "Receita de Venda",
+    modalidadeEntrega: "ENTREGA",
+  },
+  "1020": {
+    descricao: "Venda com Faturamento",
+    codTipoNegociacao: "TN-02",
+    tipoNegociacao: "Venda Externa",
+    codNatureza: "1.01.002",
+    natureza: "Venda Industrial",
+    modalidadeEntrega: "ENTREGA",
+  },
+  "1030": {
+    descricao: "Venda para Consumidor Final",
+    codTipoNegociacao: "TN-03",
+    tipoNegociacao: "Venda Direta",
+    codNatureza: "1.01.003",
+    natureza: "Venda Consumidor Final",
+    modalidadeEntrega: "RETIRA",
+  },
+  "1090": {
+    descricao: "Remessa para Consumo",
+    codTipoNegociacao: "TN-05",
+    tipoNegociacao: "Remessa",
+    codNatureza: "2.01.001",
+    natureza: "Remessa para Consumo",
+    modalidadeEntrega: "ENTREGA",
+  },
+};
+
 export function criarOrcamento(
   parceiro: Parceiro,
   codEmp: string,
   empresa: string,
   usuario: Usuario,
+  codTop = "1010",
 ): number {
   const s = dbStore.getState();
   const nunota = s.proximoNunota;
   const dadosEmp = parceiro.dadosPorEmpresa.find((d) => d.codEmp === codEmp);
+  const params = PARAMETROS_TOP[codTop] ?? PARAMETROS_TOP["1010"];
   const doc: Documento = {
     nunota,
+    numNota: 0, // NUMNOTA só é gerado no faturamento
     tipo: "ORCAMENTO",
     status: "ORCAMENTO_ABERTO",
     codParc: parceiro.codParc,
     parceiro: parceiro.razaoSocial,
     codEmp,
     empresa,
-    codTop: "1010",
-    top: "Venda de Mercadoria",
-    codTipoNegociacao: "TN-01",
-    tipoNegociacao: "Venda Interna",
+    codTop,
+    top: params.descricao,
+    codTipoNegociacao: params.codTipoNegociacao,
+    tipoNegociacao: params.tipoNegociacao,
     codCentroCusto: "CC-01",
     centroCusto: "Comercial",
-    codNatureza: "1.01.001",
-    natureza: "Receita de Venda",
+    codNatureza: params.codNatureza,
+    natureza: params.natureza,
     dtNeg: hojeISO(),
     vendedor: usuario.nome,
     comissaoPct: 5,
     comissaoReduzida: false,
     codCondicao: dadosEmp?.codCondicaoPadrao ?? "30D",
     descontoCabecalhoPct: 0,
-    modalidadeEntrega: "ENTREGA",
+    modalidadeEntrega: params.modalidadeEntrega,
     eventos: [],
     itens: [],
   };
   dbStore.setState({
     documentos: [...s.documentos, doc],
     proximoNunota: nunota + 1,
-    historico: [...s.historico, novoHistorico(nunota, usuario.nome, "Orçamento criado")],
+    historico: [
+      ...s.historico,
+      novoHistorico(
+        nunota,
+        usuario.nome,
+        `Orçamento criado pela TOP ${codTop} — ${params.descricao}`,
+      ),
+    ],
   });
   return nunota;
 }
@@ -278,6 +338,7 @@ export function duplicarOrcamento(
   const novo: Documento = {
     ...origem,
     nunota,
+    numNota: 0,
     status: "ORCAMENTO_ABERTO",
     dtNeg: hojeISO(),
     duplicadoDe: nunotaOrigem,
@@ -419,13 +480,14 @@ export function confirmarParaFaturamento(
   return { resultado: "PRONTO" };
 }
 
-/** Libera/recusa um evento. Último liberado → PRONTO_FATURAMENTO;
- *  qualquer recusa → volta para orçamento aberto (ajustar e reenviar). */
+/** Libera/recusa um evento (recusa exige motivo). Último liberado →
+ *  PRONTO_FATURAMENTO; qualquer recusa → volta para orçamento aberto. */
 export function resolverEvento(
   nunota: number,
   eventoId: string,
   decisao: Extract<EventoStatus, "LIBERADO" | "RECUSADO">,
   usuario: Usuario,
+  motivoRecusa?: string,
 ) {
   const doc = documentoPorNunota(dbStore.getState(), nunota);
   if (!doc) return;
@@ -434,7 +496,13 @@ export function resolverEvento(
 
   const eventos = doc.eventos.map((e) =>
     e.id === eventoId
-      ? { ...e, status: decisao, resolvidoPor: usuario.nome, resolvidoEm: new Date().toISOString() }
+      ? {
+          ...e,
+          status: decisao,
+          resolvidoPor: usuario.nome,
+          resolvidoEm: new Date().toISOString(),
+          motivoRecusa: decisao === "RECUSADO" ? motivoRecusa : undefined,
+        }
       : e,
   );
   const pendentes = eventos.filter((e) => e.status === "PENDENTE").length;
@@ -448,7 +516,7 @@ export function resolverEvento(
     novoHistorico(
       nunota,
       usuario.nome,
-      decisao === "LIBERADO" ? "Evento liberado" : "Evento recusado",
+      decisao === "LIBERADO" ? "Evento liberado" : `Evento recusado — motivo: ${motivoRecusa}`,
       evento.descricao,
     ),
   );
@@ -511,16 +579,19 @@ export function faturarPedido(nunota: number, usuario: Usuario): boolean {
     };
   });
 
+  const numNota = doc.numNota > 0 ? doc.numNota : s.proximoNumNota;
   dbStore.setState({
     produtos,
     parceiros,
     financeiro: [...s.financeiro, ...titulos],
+    proximoNumNota: doc.numNota > 0 ? s.proximoNumNota : s.proximoNumNota + 1,
     documentos: s.documentos.map((d) =>
       d.nunota === nunota
         ? {
             ...d,
             tipo: "PEDIDO" as const,
             status: "PEDIDO_FATURADO" as const,
+            numNota,
             dtFat: hojeISO(),
             chaveNfe: chave,
           }
@@ -531,11 +602,28 @@ export function faturarPedido(nunota: number, usuario: Usuario): boolean {
       novoHistorico(
         nunota,
         usuario.nome,
-        "Faturado — orçamento convertido em pedido, estoque reservado e NFe emitida",
+        `Faturado — NUMNOTA ${numNota} gerado, estoque reservado e NFe emitida`,
       ),
     ],
   });
   return true;
+}
+
+/** Limite de crédito é parametrizado no Parceiro (modelo Sankhya —
+ *  aba Crédito do Cadastro de Parceiros), por empresa. */
+export function atualizarLimiteCreditoParceiro(codParc: string, codEmp: string, valor: number) {
+  dbStore.setState((s) => ({
+    parceiros: s.parceiros.map((p) =>
+      p.codParc === codParc
+        ? {
+            ...p,
+            dadosPorEmpresa: p.dadosPorEmpresa.map((d) =>
+              d.codEmp === codEmp ? { ...d, limiteCredito: valor } : d,
+            ),
+          }
+        : p,
+    ),
+  }));
 }
 
 export function marcarRetiraColetado(nunota: number, usuario: Usuario) {

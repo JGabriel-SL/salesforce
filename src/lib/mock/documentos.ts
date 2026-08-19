@@ -18,6 +18,7 @@ import type {
 export const documentosMock: Documento[] = [
   {
     nunota: 100234,
+    numNota: 4581,
     tipo: "PEDIDO",
     status: "PEDIDO_FATURADO",
     codParc: "PARC-0421",
@@ -84,6 +85,7 @@ export const documentosMock: Documento[] = [
   },
   {
     nunota: 100235,
+    numNota: 4562,
     tipo: "PEDIDO",
     status: "PEDIDO_ABERTO",
     codParc: "PARC-0088",
@@ -135,6 +137,7 @@ export const documentosMock: Documento[] = [
   },
   {
     nunota: 100236,
+    numNota: 4570,
     tipo: "PEDIDO",
     status: "PEDIDO_FATURADO",
     codParc: "PARC-1120",
@@ -188,6 +191,7 @@ export const documentosMock: Documento[] = [
   },
   {
     nunota: 100237,
+    numNota: 4555,
     tipo: "PEDIDO",
     status: "CANCELADO",
     codParc: "PARC-0777",
@@ -228,6 +232,7 @@ export const documentosMock: Documento[] = [
   },
   {
     nunota: 100238,
+    numNota: 4590,
     tipo: "PEDIDO",
     status: "PEDIDO_FATURADO",
     codParc: "PARC-2200",
@@ -282,6 +287,7 @@ export const documentosMock: Documento[] = [
   },
   {
     nunota: 100239,
+    numNota: 4577,
     tipo: "PEDIDO",
     status: "PEDIDO_ABERTO",
     codParc: "PARC-3312",
@@ -333,6 +339,7 @@ export const documentosMock: Documento[] = [
   },
   {
     nunota: 100240,
+    numNota: 0,
     tipo: "ORCAMENTO",
     status: "ORCAMENTO_ABERTO",
     codParc: "PARC-0421",
@@ -385,6 +392,7 @@ export const documentosMock: Documento[] = [
   },
   {
     nunota: 100241,
+    numNota: 0,
     tipo: "ORCAMENTO",
     status: "ORCAMENTO_ABERTO", // expirado por derivação (validade 10 dias)
     codParc: "PARC-6001",
@@ -437,6 +445,7 @@ export const documentosMock: Documento[] = [
   },
   {
     nunota: 100242,
+    numNota: 0,
     tipo: "ORCAMENTO",
     status: "AGUARDANDO_LIBERACAO",
     codParc: "PARC-2200",
@@ -504,6 +513,7 @@ export const documentosMock: Documento[] = [
   },
   {
     nunota: 100243,
+    numNota: 0,
     tipo: "ORCAMENTO",
     status: "AGUARDANDO_LIBERACAO",
     codParc: "PARC-0088",
@@ -570,6 +580,7 @@ export const documentosMock: Documento[] = [
   },
   {
     nunota: 100244,
+    numNota: 0,
     tipo: "ORCAMENTO",
     status: "SEM_ESTOQUE",
     codParc: "PARC-4108",
@@ -622,6 +633,7 @@ export const documentosMock: Documento[] = [
   },
   {
     nunota: 100245,
+    numNota: 0,
     tipo: "ORCAMENTO",
     status: "PRONTO_FATURAMENTO",
     codParc: "PARC-6001",
@@ -673,6 +685,7 @@ export const documentosMock: Documento[] = [
   },
   {
     nunota: 100246,
+    numNota: 0,
     tipo: "ORCAMENTO",
     status: "ORCAMENTO_ABERTO",
     codParc: "PARC-6001",
@@ -726,6 +739,7 @@ export const documentosMock: Documento[] = [
   },
   {
     nunota: 100247,
+    numNota: 0,
     tipo: "ORCAMENTO",
     status: "ORCAMENTO_ABERTO",
     codParc: "PARC-6001",
@@ -779,6 +793,7 @@ export const documentosMock: Documento[] = [
   },
   {
     nunota: 100248,
+    numNota: 0,
     tipo: "ORCAMENTO",
     status: "ORCAMENTO_ABERTO", // expira em ~2 dias — countdown na lista
     codParc: "PARC-5230",
@@ -830,6 +845,7 @@ export const documentosMock: Documento[] = [
   },
   {
     nunota: 100249,
+    numNota: 4601,
     tipo: "PEDIDO",
     status: "PEDIDO_FATURADO",
     codParc: "PARC-3312",

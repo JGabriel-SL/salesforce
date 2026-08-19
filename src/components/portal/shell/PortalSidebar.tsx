@@ -40,7 +40,7 @@ const GRUPOS: { grupo: string; itens: NavItem[] }[] = [
     grupo: "Comercial",
     itens: [
       {
-        titulo: "Orçamentos e Pedidos",
+        titulo: "Portal de Vendas",
         to: "/orcamentos",
         icone: FileText,
         janelaIcone: "documento",
@@ -111,7 +111,7 @@ export function PortalSidebar() {
           </div>
         </button>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent data-tour="sidebar">
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>

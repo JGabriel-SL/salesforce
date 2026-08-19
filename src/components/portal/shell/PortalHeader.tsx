@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { FileText, LogOut, RefreshCcw, Search, UserRound, Users } from "lucide-react";
+import {
+  FileText,
+  HelpCircle,
+  History,
+  LayoutDashboard,
+  LogOut,
+  MonitorSmartphone,
+  RefreshCcw,
+  Search,
+  UserRound,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   CommandDialog,
@@ -21,17 +32,47 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { statusEfetivo, STATUS_LABEL } from "@/lib/mock";
 import { filtrarDocumentos, filtrarParceiros, usePermissoes } from "@/lib/permissoes";
 import { dbStore, resetarDemo } from "@/lib/stores/db";
-import { fecharTodasJanelas } from "@/lib/stores/janelas";
+import { fecharTodasJanelas, janelasStore, type JanelaIcone } from "@/lib/stores/janelas";
 import { logout } from "@/lib/stores/sessao";
 import { useAbrirJanela } from "@/lib/stores/use-janelas";
+import { useRouter } from "@tanstack/react-router";
+import { iniciarTour } from "./Tour";
+
+/** Telas do portal pesquisáveis no Ctrl+K. */
+const TELAS: { id: string; titulo: string; icone: JanelaIcone | null }[] = [
+  { id: "/", titulo: "Central de Vendas (Dashboard)", icone: null },
+  { id: "/orcamentos", titulo: "Portal de Vendas", icone: "documento" },
+  { id: "/parceiros", titulo: "Parceiros", icone: "parceiro" },
+  { id: "/flow", titulo: "Flow — Cadastro de Parceiros", icone: "flow" },
+  { id: "/telemarketing", titulo: "Telemarketing e Agenda", icone: "telemarketing" },
+  { id: "/limites", titulo: "Liberação de Limites", icone: "limites" },
+  { id: "/relatorios", titulo: "Relatórios e Power BI", icone: "relatorios" },
+  { id: "/frequentes", titulo: "Telas Frequentes", icone: null },
+];
 
 export function PortalHeader() {
   const { usuario, perfil } = usePermissoes();
   const [buscaAberta, setBuscaAberta] = useState(false);
   const abrir = useAbrirJanela();
+  const router = useRouter();
 
   const documentos = dbStore.useStore((s) => s.documentos);
   const parceiros = dbStore.useStore((s) => s.parceiros);
+  const acessos = janelasStore.useStore((s) => s.acessos);
+
+  const frequentes = useMemo(
+    () =>
+      Object.values(acessos)
+        .sort((a, b) => b.acessos - a.acessos)
+        .slice(0, 4),
+    [acessos],
+  );
+
+  const irParaTela = (tela: { id: string; titulo: string; icone: JanelaIcone | null }) => {
+    setBuscaAberta(false);
+    if (tela.icone) abrir({ id: tela.id, titulo: tela.titulo, icone: tela.icone });
+    else router.history.push(tela.id);
+  };
 
   const docsVisiveis = useMemo(
     () => (perfil ? filtrarDocumentos(documentos, perfil) : []),
@@ -66,14 +107,23 @@ export function PortalHeader() {
       </div>
 
       <button
+        data-tour="busca"
         onClick={() => setBuscaAberta(true)}
-        className="flex min-w-0 flex-1 max-w-md items-center gap-2 rounded-lg border border-green-200 bg-white px-3 py-1.5 text-sm text-slate-400 shadow-sm transition-colors hover:border-green-300"
+        className="flex min-w-0 max-w-md flex-1 items-center gap-2 rounded-lg border border-green-200 bg-white px-3 py-1.5 text-sm text-slate-400 shadow-sm transition-colors hover:border-green-300"
       >
         <Search className="h-4 w-4 shrink-0" />
-        <span className="truncate">Buscar parceiro, orçamento ou pedido…</span>
+        <span className="truncate">Buscar tela, parceiro, orçamento ou pedido…</span>
         <kbd className="ml-auto hidden rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] text-slate-400 sm:block">
           Ctrl K
         </kbd>
+      </button>
+
+      <button
+        onClick={iniciarTour}
+        title="Tour da tela atual"
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-green-700 transition-colors hover:bg-green-100 hover:text-green-900"
+      >
+        <HelpCircle className="h-4.5 w-4.5" />
       </button>
 
       <DropdownMenu>
@@ -117,9 +167,37 @@ export function PortalHeader() {
       </DropdownMenu>
 
       <CommandDialog open={buscaAberta} onOpenChange={setBuscaAberta}>
-        <CommandInput placeholder="Buscar parceiro, orçamento ou pedido…" />
+        <CommandInput placeholder="Buscar tela, parceiro, orçamento ou pedido…" />
         <CommandList>
           <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
+          {frequentes.length > 0 && (
+            <CommandGroup heading="Frequentes">
+              {frequentes.map((f) => (
+                <CommandItem
+                  key={`freq-${f.id}`}
+                  value={`frequente ${f.titulo}`}
+                  onSelect={() => irParaTela({ id: f.id, titulo: f.titulo, icone: f.icone })}
+                >
+                  <History className="h-4 w-4 text-slate-400" />
+                  <span className="min-w-0 flex-1 truncate">{f.titulo}</span>
+                  <span className="text-xs tabular-nums text-slate-400">{f.acessos}×</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+          <CommandGroup heading="Telas">
+            {TELAS.map((t) => (
+              <CommandItem key={t.id} value={`tela ${t.titulo}`} onSelect={() => irParaTela(t)}>
+                {t.id === "/" ? (
+                  <LayoutDashboard className="h-4 w-4 text-slate-400" />
+                ) : (
+                  <MonitorSmartphone className="h-4 w-4 text-slate-400" />
+                )}
+                <span className="min-w-0 flex-1 truncate">{t.titulo}</span>
+                <span className="font-mono text-xs text-slate-300">{t.id}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
           <CommandGroup heading="Parceiros">
             {parceirosVisiveis.map((p) => (
               <CommandItem
@@ -140,7 +218,7 @@ export function PortalHeader() {
               </CommandItem>
             ))}
           </CommandGroup>
-          <CommandGroup heading="Orçamentos e Pedidos">
+          <CommandGroup heading="Portal de Vendas — Orçamentos e Pedidos">
             {docsVisiveis.map((d) => (
               <CommandItem
                 key={d.nunota}

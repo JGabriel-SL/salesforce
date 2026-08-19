@@ -75,6 +75,12 @@ export interface Parceiro {
   endereco: string;
   inadimplente: boolean;
   ultimaCompra?: string; // ISO date — p/ evento de tempo inativo
+  /* Modelo TGFPAR (Sankhya) */
+  codParcMatriz?: string; // parceiro matriz — filiais apontam p/ a matriz
+  tipoPessoa?: "J" | "F"; // jurídica/física (padrão: J)
+  inscricaoEstadual?: string;
+  cliente?: boolean; // padrão: true
+  fornecedor?: boolean; // padrão: false
   contatoEntrega: ContatoEntrega;
   dadosPorEmpresa: ParceiroEmpresaDados[]; // cadastro único, dados segregados
 }
@@ -127,6 +133,7 @@ export interface EventoOcorrencia {
   solicitadoEm: string; // ISO datetime
   resolvidoPor?: string;
   resolvidoEm?: string;
+  motivoRecusa?: string; // obrigatório ao recusar
 }
 
 /* ── Documento (orçamento/pedido unificado) ──────────────── */
@@ -159,7 +166,9 @@ export interface DocumentoItem {
 export type ModalidadeEntrega = "ENTREGA" | "RETIRA";
 
 export interface Documento {
-  nunota: number;
+  nunota: number; // Nro. Único (chave interna)
+  /** NUMNOTA — número do documento; 0 até a geração da nota (faturamento) */
+  numNota: number;
   tipo: DocumentoTipo;
   status: DocumentoStatus;
   codParc: string;

@@ -32,6 +32,16 @@ export function hojeISO(): string {
   return isoDate(new Date());
 }
 
+/* ── Simulação de processamento (POC) ────────────────────── */
+/**
+ * Delay artificial para simular chamadas reais ao ERP.
+ * Aleatório entre min/max, sempre limitado a 5s.
+ */
+export function delayOperacao(minMs = 600, maxMs = 2000): Promise<void> {
+  const ms = Math.min(5000, minMs + Math.random() * (maxMs - minMs));
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /* ── Cálculos de documento ───────────────────────────────── */
 export function precoLiquidoItem(item: DocumentoItem): number {
   // Preço Alternativo e Desconto são regras independentes e exclusivas por item
@@ -86,6 +96,25 @@ export function statusEfetivo(doc: Documento): DocumentoStatus {
   }
   return doc.status;
 }
+
+/** Status simplificado exibido na listagem (convenção Sankhya):
+ *  Pendente · Confirmado · Aguardando liberação. */
+export type StatusSimplificado = "PENDENTE" | "CONFIRMADO" | "AGUARDANDO_LIBERACAO";
+
+export function statusSimplificado(doc: Documento): StatusSimplificado {
+  const st = statusEfetivo(doc);
+  if (st === "AGUARDANDO_LIBERACAO") return "AGUARDANDO_LIBERACAO";
+  if (st === "PRONTO_FATURAMENTO" || st === "PEDIDO_ABERTO" || st === "PEDIDO_FATURADO") {
+    return "CONFIRMADO";
+  }
+  return "PENDENTE";
+}
+
+export const STATUS_SIMPLIFICADO_LABEL: Record<StatusSimplificado, string> = {
+  PENDENTE: "Pendente",
+  CONFIRMADO: "Confirmado",
+  AGUARDANDO_LIBERACAO: "Aguardando liberação",
+};
 
 /** Rótulos amigáveis por status (padrão visual do portal) */
 export const STATUS_LABEL: Record<DocumentoStatus, string> = {

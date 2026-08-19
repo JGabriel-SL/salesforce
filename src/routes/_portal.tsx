@@ -4,6 +4,7 @@ import { LoginPage } from "@/components/portal/LoginPage";
 import { PortalHeader } from "@/components/portal/shell/PortalHeader";
 import { PortalSidebar } from "@/components/portal/shell/PortalSidebar";
 import { TabStrip } from "@/components/portal/shell/TabStrip";
+import { TourOverlay } from "@/components/portal/shell/Tour";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { dbStore } from "@/lib/stores/db";
@@ -21,7 +22,7 @@ function janelaPadrao(pathname: string): { titulo: string; icone: JanelaIcone } 
   if (pathname.startsWith("/parceiros/"))
     return { titulo: `Parceiro ${pathname.split("/")[2]}`, icone: "parceiro" };
   const mapa: Record<string, { titulo: string; icone: JanelaIcone }> = {
-    "/orcamentos": { titulo: "Orçamentos e Pedidos", icone: "documento" },
+    "/orcamentos": { titulo: "Portal de Vendas", icone: "documento" },
     "/parceiros": { titulo: "Parceiros", icone: "parceiro" },
     "/flow": { titulo: "Flow — Cadastro de Parceiros", icone: "flow" },
     "/telemarketing": { titulo: "Telemarketing e Agenda", icone: "telemarketing" },
@@ -47,7 +48,7 @@ function PortalLayout() {
 
   // Acesso por URL direta: garante que a tela atual exista na barra MDI.
   useEffect(() => {
-    if (!pronto || pathname === "/") return;
+    if (!pronto || pathname === "/" || pathname === "/frequentes") return;
     const { janelas } = janelasStore.getState();
     if (janelas.some((j) => j.id === pathname)) return;
     const padrao = janelaPadrao(pathname);
@@ -75,6 +76,7 @@ function PortalLayout() {
           <Outlet />
         </main>
       </SidebarInset>
+      <TourOverlay />
       <Toaster richColors position="top-right" />
     </SidebarProvider>
   );

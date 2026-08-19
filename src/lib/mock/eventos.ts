@@ -12,12 +12,28 @@ export const EVENTO_LABEL: Record<EventoTipo, string> = {
   VALOR_MINIMO: "Liberação de valor mínimo",
   PRECO_MINIMO: "Liberação de preço mínimo",
   COMISSAO_REDUZIDA: "Liberação de comissão reduzida",
-  LIMITE_CREDITO: "Limite de crédito da empresa",
-  INADIMPLENTE: "Parceiro inadimplente",
+  LIMITE_CREDITO: "Limite de crédito excedido",
+  INADIMPLENTE: "Atraso do parceiro",
   DESCONTO_ITEM_NOTA: "Desconto por item da nota",
   DESCONTO_PRODUTO: "Desconto de produto",
   TEMPO_INATIVO: "Parceiro com tempo inativo",
 };
+
+/** Número do evento de liberação (convenção Sankhya — ex.: 3 = limite
+ *  de crédito, 7 = atraso do parceiro). */
+export const EVENTO_NUM: Record<EventoTipo, number> = {
+  DESCONTO_ITEM_NOTA: 1,
+  DESCONTO_PRODUTO: 2,
+  LIMITE_CREDITO: 3,
+  PRECO_MINIMO: 5,
+  INADIMPLENTE: 7,
+  VALOR_MINIMO: 9,
+  COMISSAO_REDUZIDA: 14,
+  TEMPO_INATIVO: 21,
+};
+
+export const eventoTitulo = (tipo: EventoTipo) =>
+  `Evento ${EVENTO_NUM[tipo]} — ${EVENTO_LABEL[tipo]}`;
 
 const regra = (regras: RegraLimite[], tipo: EventoTipo) =>
   regras.find((r) => r.eventoTipo === tipo)?.valor;

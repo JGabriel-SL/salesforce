@@ -14,6 +14,7 @@ import { Route as PortalIndexRouteImport } from './routes/_portal/index'
 import { Route as PortalTelemarketingRouteImport } from './routes/_portal/telemarketing'
 import { Route as PortalRelatoriosRouteImport } from './routes/_portal/relatorios'
 import { Route as PortalLimitesRouteImport } from './routes/_portal/limites'
+import { Route as PortalFrequentesRouteImport } from './routes/_portal/frequentes'
 import { Route as PortalFlowRouteImport } from './routes/_portal/flow'
 import { Route as PortalParceirosIndexRouteImport } from './routes/_portal/parceiros.index'
 import { Route as PortalOrcamentosIndexRouteImport } from './routes/_portal/orcamentos.index'
@@ -42,6 +43,11 @@ const PortalRelatoriosRoute = PortalRelatoriosRouteImport.update({
 const PortalLimitesRoute = PortalLimitesRouteImport.update({
   id: '/limites',
   path: '/limites',
+  getParentRoute: () => PortalRoute,
+} as any)
+const PortalFrequentesRoute = PortalFrequentesRouteImport.update({
+  id: '/frequentes',
+  path: '/frequentes',
   getParentRoute: () => PortalRoute,
 } as any)
 const PortalFlowRoute = PortalFlowRouteImport.update({
@@ -73,6 +79,7 @@ const PortalOrcamentosNunotaRoute = PortalOrcamentosNunotaRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof PortalIndexRoute
   '/flow': typeof PortalFlowRoute
+  '/frequentes': typeof PortalFrequentesRoute
   '/limites': typeof PortalLimitesRoute
   '/relatorios': typeof PortalRelatoriosRoute
   '/telemarketing': typeof PortalTelemarketingRoute
@@ -83,6 +90,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/flow': typeof PortalFlowRoute
+  '/frequentes': typeof PortalFrequentesRoute
   '/limites': typeof PortalLimitesRoute
   '/relatorios': typeof PortalRelatoriosRoute
   '/telemarketing': typeof PortalTelemarketingRoute
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_portal': typeof PortalRouteWithChildren
   '/_portal/flow': typeof PortalFlowRoute
+  '/_portal/frequentes': typeof PortalFrequentesRoute
   '/_portal/limites': typeof PortalLimitesRoute
   '/_portal/relatorios': typeof PortalRelatoriosRoute
   '/_portal/telemarketing': typeof PortalTelemarketingRoute
@@ -110,6 +119,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/flow'
+    | '/frequentes'
     | '/limites'
     | '/relatorios'
     | '/telemarketing'
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/flow'
+    | '/frequentes'
     | '/limites'
     | '/relatorios'
     | '/telemarketing'
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_portal'
     | '/_portal/flow'
+    | '/_portal/frequentes'
     | '/_portal/limites'
     | '/_portal/relatorios'
     | '/_portal/telemarketing'
@@ -183,6 +195,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalLimitesRouteImport
       parentRoute: typeof PortalRoute
     }
+    '/_portal/frequentes': {
+      id: '/_portal/frequentes'
+      path: '/frequentes'
+      fullPath: '/frequentes'
+      preLoaderRoute: typeof PortalFrequentesRouteImport
+      parentRoute: typeof PortalRoute
+    }
     '/_portal/flow': {
       id: '/_portal/flow'
       path: '/flow'
@@ -223,6 +242,7 @@ declare module '@tanstack/react-router' {
 
 interface PortalRouteChildren {
   PortalFlowRoute: typeof PortalFlowRoute
+  PortalFrequentesRoute: typeof PortalFrequentesRoute
   PortalLimitesRoute: typeof PortalLimitesRoute
   PortalRelatoriosRoute: typeof PortalRelatoriosRoute
   PortalTelemarketingRoute: typeof PortalTelemarketingRoute
@@ -235,6 +255,7 @@ interface PortalRouteChildren {
 
 const PortalRouteChildren: PortalRouteChildren = {
   PortalFlowRoute: PortalFlowRoute,
+  PortalFrequentesRoute: PortalFrequentesRoute,
   PortalLimitesRoute: PortalLimitesRoute,
   PortalRelatoriosRoute: PortalRelatoriosRoute,
   PortalTelemarketingRoute: PortalTelemarketingRoute,

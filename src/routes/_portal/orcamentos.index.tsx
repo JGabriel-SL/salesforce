@@ -14,7 +14,7 @@ import { DialogDuplicar } from "@/components/portal/documento/DialogDuplicar";
 import { DialogNovoOrcamento } from "@/components/portal/documento/DialogNovoOrcamento";
 import { KpiCard } from "@/components/portal/shared/KpiCard";
 import { PageHeader } from "@/components/portal/shared/PageHeader";
-import { DocumentoStatusPill, Pill } from "@/components/portal/shared/StatusPill";
+import { Pill } from "@/components/portal/shared/StatusPill";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,9 +28,10 @@ import {
   diasParaExpirar,
   fmtDate,
   statusEfetivo,
-  STATUS_LABEL,
+  statusSimplificado,
+  STATUS_SIMPLIFICADO_LABEL,
 } from "@/lib/mock";
-import type { Documento, DocumentoStatus } from "@/lib/mock";
+import type { Documento, StatusSimplificado } from "@/lib/mock";
 import { filtrarDocumentos, usePermissoes } from "@/lib/permissoes";
 import { dbStore } from "@/lib/stores/db";
 import { useAbrirJanela } from "@/lib/stores/use-janelas";
@@ -39,24 +40,14 @@ export const Route = createFileRoute("/_portal/orcamentos/")({
   component: OrcamentosScreen,
 });
 
-const STATUS_OPTIONS: DocumentoStatus[] = [
-  "ORCAMENTO_ABERTO",
-  "ORCAMENTO_EXPIRADO",
-  "AGUARDANDO_LIBERACAO",
-  "PRONTO_FATURAMENTO",
-  "SEM_ESTOQUE",
-  "PEDIDO_ABERTO",
-  "PEDIDO_FATURADO",
-  "CANCELADO",
-];
+/* Status exibido na listagem segue a convenção Sankhya:
+   Pendente · Confirmado · Aguardando liberação */
+const STATUS_OPTIONS: StatusSimplificado[] = ["PENDENTE", "CONFIRMADO", "AGUARDANDO_LIBERACAO"];
 
-/** Pill de validade do orçamento (10 dias a partir da Data Neg.). */
-function ValidadePill({ doc }: { doc: Documento }) {
-  if (doc.tipo !== "ORCAMENTO") return <span className="text-xs text-slate-400">—</span>;
-  const dias = diasParaExpirar(doc);
-  if (dias < 0) return <Pill tone="rose">Expirado</Pill>;
-  if (dias <= 3) return <Pill tone="amber">Expira em {dias}d</Pill>;
-  return <span className="text-xs tabular-nums text-slate-500">{dias} dias</span>;
+function StatusSimplificadoPill({ doc }: { doc: Documento }) {
+  const st = statusSimplificado(doc);
+  const tone = st === "CONFIRMADO" ? "emerald" : st === "AGUARDANDO_LIBERACAO" ? "sky" : "amber";
+  return <Pill tone={tone}>{STATUS_SIMPLIFICADO_LABEL[st]}</Pill>;
 }
 
 function OrcamentosScreen() {
@@ -66,7 +57,7 @@ function OrcamentosScreen() {
 
   const [query, setQuery] = useState("");
   const [tipo, setTipo] = useState<"TODOS" | "ORCAMENTO" | "PEDIDO">("TODOS");
-  const [statusFilter, setStatusFilter] = useState<"Todos" | DocumentoStatus>("Todos");
+  const [statusFilter, setStatusFilter] = useState<"Todos" | StatusSimplificado>("Todos");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [novoAberto, setNovoAberto] = useState(false);
@@ -85,7 +76,7 @@ function OrcamentosScreen() {
     return visiveis
       .filter((d) => {
         if (tipo !== "TODOS" && d.tipo !== tipo) return false;
-        if (statusFilter !== "Todos" && statusEfetivo(d) !== statusFilter) return false;
+        if (statusFilter !== "Todos" && statusSimplificado(d) !== statusFilter) return false;
         if (inicio || fim) {
           const dt = new Date(d.dtNeg + "T00:00:00");
           if (inicio && dt < inicio) return false;
@@ -94,6 +85,7 @@ function OrcamentosScreen() {
         if (!q) return true;
         return (
           String(d.nunota).includes(q) ||
+          String(d.numNota).includes(q) ||
           d.parceiro.toLowerCase().includes(q) ||
           d.vendedor.toLowerCase().includes(q)
         );
@@ -118,10 +110,11 @@ function OrcamentosScreen() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
       <PageHeader
-        title="Orçamentos e Pedidos"
+        title="Portal de Vendas"
         subtitle="Documentos das empresas autorizadas do seu perfil, com regras da Central de Certificação."
         actions={
           <button
+            data-tour="novo"
             onClick={() => setNovoAberto(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700"
           >
@@ -139,7 +132,10 @@ function OrcamentosScreen() {
       </div>
 
       {/* Toolbar */}
-      <div className="mb-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+      <div
+        className="mb-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+        data-tour="filtros"
+      >
         <div className="grid grid-cols-1 items-end gap-3 xl:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto]">
           <ToggleGroup
             type="single"
@@ -196,7 +192,7 @@ function OrcamentosScreen() {
             <option value="Todos">Todos os status</option>
             {STATUS_OPTIONS.map((s) => (
               <option key={s} value={s}>
-                {STATUS_LABEL[s]}
+                {STATUS_SIMPLIFICADO_LABEL[s]}
               </option>
             ))}
           </select>
@@ -210,16 +206,19 @@ function OrcamentosScreen() {
       </div>
 
       {/* Tabela */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div
+        className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+        data-tour="tabela"
+      >
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50">
               <tr className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                 <th className="px-4 py-3">Nro. Único</th>
-                <th className="px-4 py-3">Tipo</th>
+                <th className="px-4 py-3">Nro. Nota</th>
                 <th className="px-4 py-3">Parceiro</th>
+                <th className="px-4 py-3">TOP</th>
                 <th className="px-4 py-3">Data Neg.</th>
-                <th className="px-4 py-3">Validade</th>
                 <th className="px-4 py-3 text-right">Valor Total</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3" />
@@ -246,17 +245,9 @@ function OrcamentosScreen() {
                         <span className="font-medium">{d.nunota}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-1">
-                        <Pill tone={d.tipo === "ORCAMENTO" ? "sky" : "violet"} dot={false}>
-                          {d.tipo === "ORCAMENTO" ? "Orçamento" : "Pedido"}
-                        </Pill>
-                        {d.duplicadoDe != null && (
-                          <Pill tone={d.precosAtualizados ? "emerald" : "slate"} dot={false}>
-                            {d.precosAtualizados ? "Preços atualizados" : "Valores originais"}
-                          </Pill>
-                        )}
-                      </div>
+                    <td className="px-4 py-3 font-mono tabular-nums text-slate-700">
+                      {/* NUMNOTA — número do documento, gerado no faturamento */}
+                      {d.numNota > 0 ? d.numNota : <span className="text-slate-300">—</span>}
                     </td>
                     <td className="px-4 py-3">
                       <div className="min-w-0">
@@ -268,15 +259,30 @@ function OrcamentosScreen() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{fmtDate(d.dtNeg)}</td>
                     <td className="px-4 py-3">
-                      <ValidadePill doc={d} />
+                      <div
+                        className="max-w-52 truncate text-slate-700"
+                        title={`${d.codTop} - ${d.top}`}
+                      >
+                        <span className="font-mono text-xs font-medium text-slate-500">
+                          {d.codTop}
+                        </span>
+                        <span className="ml-1.5">{d.top}</span>
+                      </div>
                     </td>
+                    <td className="px-4 py-3 text-slate-700">{fmtDate(d.dtNeg)}</td>
                     <td className="px-4 py-3 text-right font-medium tabular-nums text-slate-900">
                       {brl(calcDocumentoTotal(d))}
                     </td>
                     <td className="px-4 py-3">
-                      <DocumentoStatusPill status={st} />
+                      <div className="flex flex-col gap-1">
+                        <StatusSimplificadoPill doc={d} />
+                        {d.duplicadoDe != null && (
+                          <Pill tone={d.precosAtualizados ? "emerald" : "slate"} dot={false}>
+                            {d.precosAtualizados ? "Preços atualizados" : "Valores originais"}
+                          </Pill>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Boxes, Building2, Check, Eye, EyeOff, LogIn, ShieldCheck } from "lucide-react";
-import { usuariosMock } from "@/lib/mock";
+import { Boxes, Building2, Check, Eye, EyeOff, Loader2, LogIn, ShieldCheck } from "lucide-react";
+import { delayOperacao, usuariosMock } from "@/lib/mock";
 import { login } from "@/lib/stores/sessao";
 
 /**
@@ -12,13 +12,18 @@ export function LoginPage() {
   const [senha, setSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [erro, setErro] = useState(false);
+  const [autenticando, setAutenticando] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (autenticando) return;
     if (!selecionado) {
       setErro(true);
       return;
     }
+    setAutenticando(true);
+    // simula autenticação no ERP
+    await delayOperacao(900, 2000);
     login(selecionado);
   };
 
@@ -132,10 +137,20 @@ export function LoginPage() {
 
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500/20"
+              disabled={autenticando}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500/20 disabled:cursor-wait disabled:opacity-80"
             >
-              <LogIn className="h-4 w-4" />
-              Entrar
+              {autenticando ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Autenticando…
+                </>
+              ) : (
+                <>
+                  <LogIn className="h-4 w-4" />
+                  Entrar
+                </>
+              )}
             </button>
           </form>
 

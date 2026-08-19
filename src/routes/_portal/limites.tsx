@@ -1,12 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Check, ExternalLink, Settings2, ShieldCheck, X } from "lucide-react";
+import { Check, ExternalLink, Loader2, Settings2, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
+import {
+  DialogRecusarEvento,
+  type AlvoRecusa,
+} from "@/components/portal/documento/DialogRecusarEvento";
 import { KpiCard } from "@/components/portal/shared/KpiCard";
 import { PageHeader } from "@/components/portal/shared/PageHeader";
 import { EventoStatusPill, Pill } from "@/components/portal/shared/StatusPill";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { brl, calcDocumentoTotal, EVENTO_LABEL, fmtDateTime, statusEfetivo } from "@/lib/mock";
+import {
+  brl,
+  calcDocumentoTotal,
+  EVENTO_LABEL,
+  eventoTitulo,
+  delayOperacao,
+  fmtDateTime,
+  statusEfetivo,
+} from "@/lib/mock";
 import { filtrarDocumentos, usePermissoes } from "@/lib/permissoes";
 import { atualizarRegraLimite, dbStore, resolverEvento } from "@/lib/stores/db";
 import { useAbrirJanela } from "@/lib/stores/use-janelas";
@@ -20,6 +32,7 @@ function LimitesScreen() {
   const documentos = dbStore.useStore((s) => s.documentos);
   const regras = dbStore.useStore((s) => s.regrasLimite);
   const abrir = useAbrirJanela();
+  const [recusando, setRecusando] = useState<AlvoRecusa | null>(null);
 
   const docsComEventos = useMemo(
     () =>
@@ -32,12 +45,15 @@ function LimitesScreen() {
     d.eventos.filter((e) => e.status === "PENDENTE").map((e) => ({ doc: d, evento: e })),
   );
 
-  const decidir = (nunota: number, eventoId: string, decisao: "LIBERADO" | "RECUSADO") => {
-    if (!usuario) return;
-    resolverEvento(nunota, eventoId, decisao, usuario);
-    toast(decisao === "LIBERADO" ? "Evento liberado" : "Evento recusado", {
-      description: `Documento ${nunota}`,
-    });
+  const [liberandoId, setLiberandoId] = useState<string | null>(null);
+
+  const liberar = async (nunota: number, eventoId: string) => {
+    if (!usuario || liberandoId) return;
+    setLiberandoId(eventoId);
+    await delayOperacao(700, 1600);
+    setLiberandoId(null);
+    resolverEvento(nunota, eventoId, "LIBERADO", usuario);
+    toast("Evento liberado", { description: `Documento ${nunota}` });
   };
 
   return (
@@ -83,7 +99,7 @@ function LimitesScreen() {
         </TabsList>
 
         {/* Consulta — fila de liberação */}
-        <TabsContent value="consulta" className="space-y-4">
+        <TabsContent value="consulta" className="space-y-4" data-tour="fila-liberacao">
           {docsComEventos.length === 0 && (
             <p className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
               Nenhum documento aguardando liberação nas empresas do seu perfil. 🎉
@@ -120,25 +136,44 @@ function LimitesScreen() {
                 {d.eventos.map((ev) => (
                   <li key={ev.id} className="flex items-center gap-4 px-5 py-3">
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-slate-900">{EVENTO_LABEL[ev.tipo]}</p>
+                      <p className="text-sm font-medium text-slate-900">{eventoTitulo(ev.tipo)}</p>
                       <p className="truncate text-xs text-slate-500">{ev.descricao}</p>
                       <p className="mt-0.5 text-[11px] text-slate-400">
                         Solicitado em {fmtDateTime(ev.solicitadoEm)}
                         {ev.resolvidoPor &&
                           ` · ${ev.status === "LIBERADO" ? "liberado" : "recusado"} por ${ev.resolvidoPor}`}
+                        {ev.motivoRecusa && (
+                          <span className="text-rose-500"> · motivo: {ev.motivoRecusa}</span>
+                        )}
                       </p>
                     </div>
                     <EventoStatusPill status={ev.status} />
                     {perfil?.podeAprovarLiberacoes && ev.status === "PENDENTE" && (
                       <div className="flex shrink-0 gap-1.5">
                         <button
-                          onClick={() => decidir(d.nunota, ev.id, "LIBERADO")}
-                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+                          onClick={() => liberar(d.nunota, ev.id)}
+                          disabled={liberandoId != null}
+                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-70"
                         >
-                          <Check className="h-3.5 w-3.5" /> Liberar
+                          {liberandoId === ev.id ? (
+                            <>
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Liberando…
+                            </>
+                          ) : (
+                            <>
+                              <Check className="h-3.5 w-3.5" /> Liberar
+                            </>
+                          )}
                         </button>
                         <button
-                          onClick={() => decidir(d.nunota, ev.id, "RECUSADO")}
+                          onClick={() =>
+                            setRecusando({
+                              nunota: d.nunota,
+                              eventoId: ev.id,
+                              titulo: eventoTitulo(ev.tipo),
+                              descricao: ev.descricao,
+                            })
+                          }
                           className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-700 transition-colors hover:bg-rose-100"
                         >
                           <X className="h-3.5 w-3.5" /> Recusar
@@ -162,6 +197,12 @@ function LimitesScreen() {
                 <Pill tone="slate">Somente leitura — exclusivo do Administrador</Pill>
               )}
             </header>
+            <p className="border-b border-slate-100 bg-slate-50/60 px-5 py-2.5 text-xs text-slate-500">
+              O <span className="font-medium">limite de crédito</span> segue a estrutura Sankhya e é
+              parametrizado por empresa no{" "}
+              <span className="font-medium">Cadastro de Parceiros</span> (ficha do parceiro → aba
+              Crédito). Aqui ficam as demais regras da régua de eventos.
+            </p>
             <table className="min-w-full divide-y divide-slate-100 text-sm">
               <thead className="bg-slate-50">
                 <tr className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -187,6 +228,8 @@ function LimitesScreen() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <DialogRecusarEvento alvo={recusando} onOpenChange={(v) => !v && setRecusando(null)} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { Check, ChevronRight, GitPullRequestArrow, UserPlus, X } from "lucide-react";
+import { Check, ChevronRight, GitPullRequestArrow, Loader2, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { KpiCard } from "@/components/portal/shared/KpiCard";
 import { PageHeader } from "@/components/portal/shared/PageHeader";
@@ -20,7 +20,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { empresasMock, FLOW_ETAPAS, fmtDateTime } from "@/lib/mock";
+import { delayOperacao, empresasMock, FLOW_ETAPAS, fmtDateTime } from "@/lib/mock";
 import type { SolicitacaoFlow } from "@/lib/mock";
 import { usePermissoes } from "@/lib/permissoes";
 import { criarSolicitacaoFlow, dbStore, decidirEtapaFlow } from "@/lib/stores/db";
@@ -85,12 +85,16 @@ function FlowScreen() {
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [novaAberta, setNovaAberta] = useState(false);
   const [parecer, setParecer] = useState("");
+  const [decidindo, setDecidindo] = useState<"APROVADO" | "REPROVADO" | null>(null);
 
   const sol = solicitacoes.find((f) => f.id === selecionada) ?? null;
   const emAndamento = solicitacoes.filter((f) => f.resultado === "EM_ANDAMENTO").length;
 
-  const decidir = (decisao: "APROVADO" | "REPROVADO") => {
-    if (!usuario || !sol) return;
+  const decidir = async (decisao: "APROVADO" | "REPROVADO") => {
+    if (!usuario || !sol || decidindo) return;
+    setDecidindo(decisao);
+    await delayOperacao(900, 2000);
+    setDecidindo(null);
     decidirEtapaFlow(
       sol.id,
       decisao,
@@ -284,15 +288,33 @@ function FlowScreen() {
                     <div className="mt-2 flex gap-2">
                       <button
                         onClick={() => decidir("APROVADO")}
-                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+                        disabled={decidindo != null}
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-wait disabled:opacity-80"
                       >
-                        <Check className="h-4 w-4" /> Aprovar etapa
+                        {decidindo === "APROVADO" ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" /> Aprovando…
+                          </>
+                        ) : (
+                          <>
+                            <Check className="h-4 w-4" /> Aprovar etapa
+                          </>
+                        )}
                       </button>
                       <button
                         onClick={() => decidir("REPROVADO")}
-                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100"
+                        disabled={decidindo != null}
+                        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100 disabled:cursor-wait disabled:opacity-70"
                       >
-                        <X className="h-4 w-4" /> Reprovar
+                        {decidindo === "REPROVADO" ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" /> Registrando…
+                          </>
+                        ) : (
+                          <>
+                            <X className="h-4 w-4" /> Reprovar
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>

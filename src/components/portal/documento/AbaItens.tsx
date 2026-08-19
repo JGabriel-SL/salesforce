@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { PackagePlus, Trash2 } from "lucide-react";
+import { PackagePlus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { NumberCell } from "@/components/portal/shared/CodedFieldRow";
 import {
@@ -238,8 +238,9 @@ export function AbaItens({ doc, regras }: { doc: Documento; regras: RegrasDocume
   );
 }
 
-/** "Carrinho": inclusão de item com desconto opcional já na entrada.
- *  Produtos limitados às linhas autorizadas do perfil. */
+/** Busca de produtos estilo Sankhya: filtro pela descrição, lista com
+ *  estoque disponível, valor unitário e desconto opcional por linha,
+ *  com ação "Adicionar" item a item. */
 function DialogAdicionarItem({
   doc,
   open,
@@ -251,21 +252,31 @@ function DialogAdicionarItem({
 }) {
   const { usuario, perfil } = usePermissoes();
   const produtos = dbStore.useStore((s) => s.produtos);
-  const [codProd, setCodProd] = useState("");
-  const [quantidade, setQuantidade] = useState(1);
-  const [descontoPct, setDescontoPct] = useState(0);
+  const [busca, setBusca] = useState("");
+  // qtd/desconto digitados por produto antes de adicionar
+  const [linhas, setLinhas] = useState<Record<string, { qtd: number; desc: number }>>({});
 
-  const disponiveis = useMemo(
-    () => (perfil ? filtrarProdutos(produtos, perfil) : []),
-    [produtos, perfil],
-  );
-  const produto = disponiveis.find((p) => p.codProd === codProd);
   const fator = condicaoPorCodigo(doc.codCondicao).fatorPreco;
-  const precoVenda = produto ? Math.round(produto.precoBase * fator * 100) / 100 : 0;
-  const saldo = produto ? estoqueDisponivel(dbStore.getState(), produto.codProd, doc.codEmp) : 0;
 
-  const incluir = () => {
-    if (!usuario || !produto || quantidade <= 0) return;
+  const disponiveis = useMemo(() => {
+    const base = perfil ? filtrarProdutos(produtos, perfil) : [];
+    const q = busca.trim().toLowerCase();
+    if (!q) return base;
+    return base.filter(
+      (p) => p.descricao.toLowerCase().includes(q) || p.codProd.toLowerCase().includes(q),
+    );
+  }, [produtos, perfil, busca]);
+
+  const linhaDe = (codProd: string) => linhas[codProd] ?? { qtd: 1, desc: 0 };
+  const setLinha = (codProd: string, patch: Partial<{ qtd: number; desc: number }>) =>
+    setLinhas((prev) => ({ ...prev, [codProd]: { ...linhaDe(codProd), ...patch } }));
+
+  const adicionar = (codProd: string) => {
+    const produto = disponiveis.find((p) => p.codProd === codProd);
+    const { qtd, desc } = linhaDe(codProd);
+    if (!usuario || !produto || qtd <= 0) return;
+    const precoVenda = Math.round(produto.precoBase * fator * 100) / 100;
+    const saldo = estoqueDisponivel(dbStore.getState(), produto.codProd, doc.codEmp);
     adicionarItem(
       doc.nunota,
       {
@@ -274,107 +285,128 @@ function DialogAdicionarItem({
         descricao: produto.descricao,
         unidade: produto.unidade,
         linhaProduto: produto.linhaProduto,
-        quantidade,
+        quantidade: qtd,
         precoBase: produto.precoBase,
         precoUnitario: precoVenda,
-        descontoPct,
+        descontoPct: desc,
         precoAlternativo: null,
       },
       usuario,
     );
-    onOpenChange(false);
-    setCodProd("");
-    setQuantidade(1);
-    setDescontoPct(0);
-    toast.success(`${produto.descricao} incluído`, {
-      description:
-        saldo < quantidade ? "Atenção: quantidade acima do saldo disponível." : undefined,
+    toast.success(`${produto.descricao} incluído (${qtd} ${produto.unidade})`, {
+      description: saldo < qtd ? "Atenção: quantidade acima do saldo disponível." : undefined,
     });
   };
 
+  const inputCls =
+    "rounded-md border border-slate-200 bg-white px-2 py-1.5 text-right text-sm tabular-nums text-slate-900 outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[85vh] overflow-hidden sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Adicionar item</DialogTitle>
+          <DialogTitle>Adicionar itens</DialogTitle>
           <DialogDescription>
-            Somente produtos das linhas autorizadas ({perfil?.linhasProdutoAutorizadas.join(", ")}).
-            Preço calculado pela condição {doc.codCondicao}.
+            Filtre pela descrição do produto — linhas autorizadas (
+            {perfil?.linhasProdutoAutorizadas.join(", ")}). Preço unitário pela condição{" "}
+            {doc.codCondicao}.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-500">
-              Produto
-            </span>
-            <select
-              value={codProd}
-              onChange={(e) => setCodProd(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-            >
-              <option value="">Selecione…</option>
-              {disponiveis.map((p) => (
-                <option key={p.codProd} value={p.codProd}>
-                  {p.codProd} — {p.descricao} ({p.linhaProduto})
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            autoFocus
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Digite o nome ou código do produto…"
+            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+          />
+        </div>
 
-          {produto && (
-            <div className="grid grid-cols-3 gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-sm">
-              <div>
-                <p className="text-[11px] uppercase tracking-wider text-slate-400">Preço venda</p>
-                <p className="font-semibold tabular-nums text-slate-900">{brl(precoVenda)}</p>
-              </div>
-              <div>
-                <p className="text-[11px] uppercase tracking-wider text-slate-400">Preço mínimo</p>
-                <p className="font-medium tabular-nums text-slate-600">
-                  {brl(produto.precoMinimo)}
-                </p>
-              </div>
-              <div>
-                <p className="text-[11px] uppercase tracking-wider text-slate-400">
-                  Saldo em {doc.codEmp}
-                </p>
-                <p
-                  className={`font-semibold tabular-nums ${saldo === 0 ? "text-rose-600" : "text-slate-900"}`}
-                >
-                  {saldo} {produto.unidade}
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-500">
-                Quantidade
-              </span>
-              <input
-                type="number"
-                min={1}
-                value={quantidade}
-                onChange={(e) => setQuantidade(Math.max(0, parseFloat(e.target.value) || 0))}
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm tabular-nums text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-500">
-                Desconto % (carrinho)
-              </span>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step={0.5}
-                value={descontoPct}
-                onChange={(e) => setDescontoPct(Math.max(0, parseFloat(e.target.value) || 0))}
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm tabular-nums text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
-              />
-            </label>
-          </div>
+        <div className="-mx-1 max-h-96 overflow-y-auto px-1">
+          <table className="min-w-full divide-y divide-slate-100 text-sm">
+            <thead className="sticky top-0 bg-white">
+              <tr className="text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <th className="py-2 pr-2">Produto</th>
+                <th className="px-2 py-2 text-right">Estoque</th>
+                <th className="px-2 py-2 text-right">Vlr. Unit.</th>
+                <th className="px-2 py-2 text-right">Qtd.</th>
+                <th className="px-2 py-2 text-right">Desc. %</th>
+                <th className="py-2 pl-2" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {disponiveis.map((p) => {
+                const saldo = estoqueDisponivel(dbStore.getState(), p.codProd, doc.codEmp);
+                const precoVenda = Math.round(p.precoBase * fator * 100) / 100;
+                const { qtd, desc } = linhaDe(p.codProd);
+                return (
+                  <tr key={p.codProd} className="hover:bg-slate-50/60">
+                    <td className="max-w-60 py-2.5 pr-2">
+                      <p className="truncate font-medium text-slate-900">{p.descricao}</p>
+                      <p className="text-xs text-slate-500">
+                        {p.codProd} · {p.unidade} · {p.linhaProduto}
+                      </p>
+                    </td>
+                    <td
+                      className={`px-2 py-2.5 text-right font-medium tabular-nums ${
+                        saldo === 0 ? "text-rose-600" : "text-slate-900"
+                      }`}
+                    >
+                      {saldo} {p.unidade}
+                    </td>
+                    <td className="px-2 py-2.5 text-right font-semibold tabular-nums text-slate-900">
+                      {brl(precoVenda)}
+                    </td>
+                    <td className="px-2 py-2.5 text-right">
+                      <input
+                        type="number"
+                        min={1}
+                        value={qtd}
+                        onChange={(e) =>
+                          setLinha(p.codProd, { qtd: Math.max(0, parseFloat(e.target.value) || 0) })
+                        }
+                        className={`w-16 ${inputCls}`}
+                      />
+                    </td>
+                    <td className="px-2 py-2.5 text-right">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.5}
+                        value={desc}
+                        onChange={(e) =>
+                          setLinha(p.codProd, {
+                            desc: Math.max(0, parseFloat(e.target.value) || 0),
+                          })
+                        }
+                        className={`w-16 ${inputCls}`}
+                      />
+                    </td>
+                    <td className="py-2.5 pl-2 text-right">
+                      <button
+                        onClick={() => adicionar(p.codProd)}
+                        disabled={qtd <= 0}
+                        className="inline-flex items-center gap-1 rounded-lg border border-green-300 bg-green-50 px-2.5 py-1.5 text-xs font-semibold text-green-700 transition-colors hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <PackagePlus className="h-3.5 w-3.5" />
+                        Adicionar
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {disponiveis.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-10 text-center text-sm text-slate-500">
+                    Nenhum produto encontrado para a busca.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
 
         <DialogFooter>
@@ -382,15 +414,7 @@ function DialogAdicionarItem({
             onClick={() => onOpenChange(false)}
             className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
           >
-            Cancelar
-          </button>
-          <button
-            onClick={incluir}
-            disabled={!produto || quantidade <= 0}
-            className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <PackagePlus className="h-4 w-4" />
-            Incluir no documento
+            Concluir
           </button>
         </DialogFooter>
       </DialogContent>

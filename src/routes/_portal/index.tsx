@@ -87,7 +87,7 @@ function Dashboard() {
             titulo="Pedidos Retira Não Coletados"
             contagem={retiraPendentes.length}
             onAbrir={() =>
-              abrir({ id: "/orcamentos", titulo: "Orçamentos e Pedidos", icone: "documento" })
+              abrir({ id: "/orcamentos", titulo: "Portal de Vendas", icone: "documento" })
             }
           >
             {retiraPendentes.slice(0, 3).map((d) => (
@@ -247,7 +247,7 @@ function Dashboard() {
         subtitle={`${usuario?.cargo} · cards personalizados pelo perfil ${perfil?.nome}`}
       />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4" data-tour="kpis">
         <KpiCard
           label="Orçamentos abertos"
           value={String(orcAbertos.length)}
@@ -272,7 +272,7 @@ function Dashboard() {
         <KpiCard label="Faturado no mês" value={brl(faturadoMes)} icon={TrendingUp} tone="green" />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-2" data-tour="cards">
         {cards.map(renderCard)}
       </div>
     </div>

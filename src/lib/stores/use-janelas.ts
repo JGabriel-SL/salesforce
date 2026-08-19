@@ -1,17 +1,18 @@
 import { useRouter } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { abrirJanela, fecharJanela, LIMITE_JANELAS, type Janela } from "./janelas";
+import { abrirJanela, fecharJanela, janelasStore, LIMITE_AVISO, type Janela } from "./janelas";
 
-/** Abre/foca uma janela MDI respeitando o limite de 5 telas simultâneas. */
+/** Abre/foca uma janela MDI. Sem limite rígido — apenas alerta quando
+ *  há muitas telas abertas simultaneamente. */
 export function useAbrirJanela() {
   const router = useRouter();
   return (janela: Janela): boolean => {
     const resultado = abrirJanela(janela);
-    if (resultado === "limite") {
-      toast.error(`Limite de ${LIMITE_JANELAS} telas simultâneas atingido`, {
-        description: "Feche uma das telas abertas para continuar.",
+    if (resultado === "aviso") {
+      const total = janelasStore.getState().janelas.length;
+      toast.warning(`Você está com ${total} telas abertas`, {
+        description: `Acima de ${LIMITE_AVISO} telas o desempenho e a organização podem ser prejudicados — considere fechar algumas.`,
       });
-      return false;
     }
     router.history.push(janela.id);
     return true;

@@ -9,6 +9,7 @@ import {
   Copy,
   FileWarning,
   Layers,
+  Loader2,
   PackageCheck,
   PackageX,
   Paperclip,
@@ -16,7 +17,6 @@ import {
   Receipt,
   RotateCcw,
   ShieldAlert,
-  Tag,
   User2,
   Wallet,
 } from "lucide-react";
@@ -46,6 +46,7 @@ import {
   condicoesMock,
   dataValidade,
   diasParaExpirar,
+  delayOperacao,
   fmtDate,
 } from "@/lib/mock";
 import type { Documento } from "@/lib/mock";
@@ -101,6 +102,8 @@ function DocumentoView({ doc }: { doc: Documento }) {
   const [anexosAberto, setAnexosAberto] = useState(false);
   const [duplicarAberto, setDuplicarAberto] = useState(false);
   const [imprimirAberto, setImprimirAberto] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
+  const [faturando, setFaturando] = useState(false);
 
   const parceiro = parceiros.find((p) => p.codParc === doc.codParc);
   const dadosEmp = parceiro?.dadosPorEmpresa.find((d) => d.codEmp === doc.codEmp);
@@ -109,8 +112,12 @@ function DocumentoView({ doc }: { doc: Documento }) {
     ? Math.min(100, (dadosEmp.creditoUtilizado / dadosEmp.limiteCredito) * 100)
     : 0;
 
-  const confirmar = () => {
-    if (!usuario) return;
+  const confirmar = async () => {
+    if (!usuario || confirmando) return;
+    setConfirmando(true);
+    // simula a avaliação da régua de eventos no ERP
+    await delayOperacao(1200, 2800);
+    setConfirmando(false);
     const r = confirmarParaFaturamento(doc.nunota, usuario);
     if (!r) return;
     if (r.resultado === "PRONTO") {
@@ -126,8 +133,12 @@ function DocumentoView({ doc }: { doc: Documento }) {
     }
   };
 
-  const faturar = () => {
-    if (!usuario) return;
+  const faturar = async () => {
+    if (!usuario || faturando) return;
+    setFaturando(true);
+    // simula o SelecaoDocumentoSP.faturar (operação mais pesada do ERP)
+    await delayOperacao(2200, 4500);
+    setFaturando(false);
     faturarPedido(doc.nunota, usuario);
     toast.success(`Pedido ${doc.nunota} faturado!`, {
       description: "Orçamento convertido em pedido, estoque reservado e NFe emitida.",
@@ -181,7 +192,7 @@ function DocumentoView({ doc }: { doc: Documento }) {
             className="mb-1.5 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 transition-colors hover:text-slate-900"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Central de Orçamentos e Pedidos
+            Portal de Vendas
           </button>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="truncate text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
@@ -200,7 +211,10 @@ function DocumentoView({ doc }: { doc: Documento }) {
             {doc.parceiro} · {doc.empresa} · Vendedor {doc.vendedor}
           </p>
         </div>
-        <div className="hidden shrink-0 flex-wrap items-center justify-end gap-2 sm:flex">
+        <div
+          className="hidden shrink-0 flex-wrap items-center justify-end gap-2 sm:flex"
+          data-tour="acoes-doc"
+        >
           <button onClick={() => setAnexosAberto(true)} className={btnSecundario}>
             <Paperclip className="h-4 w-4" /> Anexos
           </button>
@@ -217,17 +231,35 @@ function DocumentoView({ doc }: { doc: Documento }) {
           {regras.podeConfirmar && (
             <button
               onClick={confirmar}
-              className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-sm font-medium text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100"
+              disabled={confirmando}
+              className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-sm font-medium text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100 disabled:cursor-wait disabled:opacity-70"
             >
-              <CheckCircle className="h-4 w-4" /> Confirmar p/ faturamento
+              {confirmando ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Validando regras…
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4" /> Confirmar p/ faturamento
+                </>
+              )}
             </button>
           )}
           {regras.podeFaturar && perfil?.podeFaturar && (
             <button
               onClick={faturar}
-              className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700"
+              disabled={faturando}
+              className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700 disabled:cursor-wait disabled:opacity-80"
             >
-              <BadgeCheck className="h-4 w-4" /> Faturar
+              {faturando ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Faturando…
+                </>
+              ) : (
+                <>
+                  <BadgeCheck className="h-4 w-4" /> Faturar
+                </>
+              )}
             </button>
           )}
           {regras.faturado && doc.modalidadeEntrega === "RETIRA" && !doc.retiraColetado && (
@@ -305,7 +337,7 @@ function DocumentoView({ doc }: { doc: Documento }) {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
         {/* Aside — cliente + cabeçalho + totalizador */}
-        <aside className="space-y-4">
+        <aside className="space-y-4" data-tour="cabecalho-doc">
           {/* Cliente */}
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-start justify-between gap-2">
@@ -415,13 +447,6 @@ function DocumentoView({ doc }: { doc: Documento }) {
                 readOnly
               />
               <CodedFieldRow
-                icon={<Tag className="h-4 w-4" />}
-                label="Tipo Neg."
-                code={doc.codTipoNegociacao}
-                value={doc.tipoNegociacao}
-                readOnly
-              />
-              <CodedFieldRow
                 icon={<Layers className="h-4 w-4" />}
                 label="Centro de Custo"
                 code={doc.codCentroCusto}
@@ -431,13 +456,13 @@ function DocumentoView({ doc }: { doc: Documento }) {
             </dl>
           </section>
 
-          {/* Condição de pagamento */}
+          {/* Tipo de Negociação = condição de pagamento (convenção Sankhya) */}
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
-              Condição de pagamento
+              Tipo de Negociação
             </p>
             <div className="mt-3 space-y-2.5">
-              <FieldRow icon={<Wallet className="h-4 w-4" />} label="Condição">
+              <FieldRow icon={<Wallet className="h-4 w-4" />} label="Condição de pagamento">
                 <select
                   value={doc.codCondicao}
                   disabled={!regras.podeEditar}
@@ -525,7 +550,10 @@ function DocumentoView({ doc }: { doc: Documento }) {
         {/* Conteúdo principal — abas */}
         <div className="min-w-0">
           <Tabs defaultValue="itens">
-            <TabsList className="mb-4 h-auto rounded-lg bg-green-100 p-1 text-green-700">
+            <TabsList
+              className="mb-4 h-auto rounded-lg bg-green-100 p-1 text-green-700"
+              data-tour="abas-doc"
+            >
               {[
                 { v: "itens", label: "Itens" },
                 { v: "totais", label: "Totais e Comissão" },

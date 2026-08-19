@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { FilePlus2 } from "lucide-react";
+import { FilePlus2, Loader2, Receipt } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -9,11 +9,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { empresasMock } from "@/lib/mock";
-import { dadosEmpresaAutorizados, filtrarParceiros, usePermissoes } from "@/lib/permissoes";
+import { Pill } from "@/components/portal/shared/StatusPill";
+import { delayOperacao, empresasMock } from "@/lib/mock";
+import {
+  dadosEmpresaAutorizados,
+  filtrarParceiros,
+  topsDisponiveis,
+  usePermissoes,
+} from "@/lib/permissoes";
 import { criarOrcamento, dbStore } from "@/lib/stores/db";
 import { useAbrirJanela } from "@/lib/stores/use-janelas";
 
+/**
+ * Criação de documento no padrão Sankhya: primeiro a TOP (Tipo de
+ * Operação), depois o parceiro — o documento nasce parametrizado
+ * pela TOP informada (tipo de negociação, natureza, modalidade).
+ */
 export function DialogNovoOrcamento({
   open,
   onOpenChange,
@@ -25,8 +36,13 @@ export function DialogNovoOrcamento({
   const parceiros = dbStore.useStore((s) => s.parceiros);
   const abrir = useAbrirJanela();
 
+  const [codTop, setCodTop] = useState("");
   const [codParc, setCodParc] = useState("");
   const [codEmp, setCodEmp] = useState("");
+  const [gerando, setGerando] = useState(false);
+
+  const tops = useMemo(() => (perfil ? topsDisponiveis(perfil) : []), [perfil]);
+  const top = tops.find((t) => t.codTop === codTop);
 
   const parceirosVisiveis = useMemo(
     () => (perfil ? filtrarParceiros(parceiros, perfil) : []),
@@ -38,17 +54,21 @@ export function DialogNovoOrcamento({
     [parceiro, perfil],
   );
 
-  const criar = () => {
-    if (!usuario || !parceiro) return;
+  const criar = async () => {
+    if (!usuario || !parceiro || !top || gerando) return;
     const emp = empresasDoParceiro.find((d) => d.codEmp === codEmp) ?? empresasDoParceiro[0];
     if (!emp) return;
+    setGerando(true);
+    await delayOperacao(1000, 2500);
+    setGerando(false);
     const nomeEmp = empresasMock.find((e) => e.codEmp === emp.codEmp)?.nome ?? emp.codEmp;
-    const nunota = criarOrcamento(parceiro, emp.codEmp, nomeEmp, usuario);
+    const nunota = criarOrcamento(parceiro, emp.codEmp, nomeEmp, usuario, top.codTop);
     onOpenChange(false);
+    setCodTop("");
     setCodParc("");
     setCodEmp("");
     toast.success(`Orçamento ${nunota} criado`, {
-      description: `${parceiro.razaoSocial} · validade de 10 dias`,
+      description: `TOP ${top.codTop} — ${top.descricao} · ${parceiro.razaoSocial} · validade de 10 dias`,
     });
     abrir({ id: `/orcamentos/${nunota}`, titulo: `Orçamento ${nunota}`, icone: "documento" });
   };
@@ -60,13 +80,60 @@ export function DialogNovoOrcamento({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Novo orçamento</DialogTitle>
+          <DialogTitle>Novo documento de venda</DialogTitle>
           <DialogDescription>
-            Selecione o parceiro e a empresa de venda. O orçamento nasce com validade de 10 dias.
+            Informe a TOP e o parceiro — o orçamento é gerado com a parametrização da TOP e validade
+            de 10 dias.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-500">
+              TOP — Tipo de Operação
+            </span>
+            <select
+              value={codTop}
+              onChange={(e) => setCodTop(e.target.value)}
+              className={selectCls}
+            >
+              <option value="">Selecione…</option>
+              {tops.map((t) => (
+                <option key={t.codTop} value={t.codTop}>
+                  {t.codTop} — {t.descricao}
+                  {t.remessa ? " (remessa)" : ""}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-slate-400">
+              Exibindo somente as TOPs autorizadas pelo seu perfil.
+            </p>
+          </label>
+
+          {top && (
+            <div className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50/50 p-3">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-green-100 text-green-700">
+                <Receipt className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 text-xs leading-relaxed text-slate-600">
+                <p className="font-semibold text-slate-900">
+                  {top.codTop} — {top.descricao}
+                </p>
+                <p>
+                  O documento nasce parametrizado por esta TOP: tipo de negociação, natureza e
+                  modalidade de entrega.
+                </p>
+                {top.remessa && (
+                  <div className="mt-1">
+                    <Pill tone="amber" dot={false}>
+                      TOP de remessa — uso restrito
+                    </Pill>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <label className="block">
             <span className="mb-1 block text-xs font-medium uppercase tracking-wider text-slate-500">
               Parceiro
@@ -125,11 +192,18 @@ export function DialogNovoOrcamento({
           </button>
           <button
             onClick={criar}
-            disabled={!parceiro || empresasDoParceiro.length === 0}
+            disabled={!top || !parceiro || empresasDoParceiro.length === 0 || gerando}
             className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <FilePlus2 className="h-4 w-4" />
-            Criar orçamento
+            {gerando ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Gerando documento…
+              </>
+            ) : (
+              <>
+                <FilePlus2 className="h-4 w-4" /> Gerar documento
+              </>
+            )}
           </button>
         </DialogFooter>
       </DialogContent>

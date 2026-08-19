@@ -1,15 +1,17 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Building2,
   FilePlus2,
+  Landmark,
   Mail,
   MapPin,
   Phone,
   Undo2,
   UserRound,
 } from "lucide-react";
+import { toast } from "sonner";
 import { DocumentoStatusPill, Pill } from "@/components/portal/shared/StatusPill";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,7 +25,7 @@ import {
 } from "@/lib/mock";
 import type { Parceiro } from "@/lib/mock";
 import { dadosEmpresaAutorizados, filtrarDocumentos, usePermissoes } from "@/lib/permissoes";
-import { dbStore } from "@/lib/stores/db";
+import { atualizarLimiteCreditoParceiro, dbStore } from "@/lib/stores/db";
 import { renomearJanela } from "@/lib/stores/janelas";
 import { useAbrirJanela } from "@/lib/stores/use-janelas";
 
@@ -104,7 +106,7 @@ function FichaParceiro({ parceiro }: { parceiro: Parceiro }) {
         </div>
         <button
           onClick={() =>
-            abrir({ id: "/orcamentos", titulo: "Orçamentos e Pedidos", icone: "documento" })
+            abrir({ id: "/orcamentos", titulo: "Portal de Vendas", icone: "documento" })
           }
           className="hidden shrink-0 items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700 sm:inline-flex"
         >
@@ -120,6 +122,34 @@ function FichaParceiro({ parceiro }: { parceiro: Parceiro }) {
             <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
               Ficha do parceiro
             </p>
+            {/* Campos do modelo TGFPAR (Sankhya) */}
+            <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-2 border-b border-slate-100 pb-4 text-xs">
+              <div>
+                <dt className="uppercase tracking-wider text-slate-400">Tipo de pessoa</dt>
+                <dd className="mt-0.5 font-medium text-slate-800">
+                  {(parceiro.tipoPessoa ?? "J") === "J" ? "Jurídica" : "Física"}
+                </dd>
+              </div>
+              <div>
+                <dt className="uppercase tracking-wider text-slate-400">Inscr. Estadual</dt>
+                <dd className="mt-0.5 font-medium text-slate-800">
+                  {parceiro.inscricaoEstadual ?? "Isento"}
+                </dd>
+              </div>
+              <div>
+                <dt className="uppercase tracking-wider text-slate-400">Cliente</dt>
+                <dd className="mt-0.5 font-medium text-slate-800">
+                  {(parceiro.cliente ?? true) ? "Sim" : "Não"}
+                </dd>
+              </div>
+              <div>
+                <dt className="uppercase tracking-wider text-slate-400">Fornecedor</dt>
+                <dd className="mt-0.5 font-medium text-slate-800">
+                  {parceiro.fornecedor ? "Sim" : "Não"}
+                </dd>
+              </div>
+            </dl>
+            <ParceiroMatrizInfo parceiro={parceiro} />
             <dl className="mt-4 space-y-3 text-sm">
               <div className="flex items-start gap-2.5">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
@@ -339,6 +369,11 @@ function FichaParceiro({ parceiro }: { parceiro: Parceiro }) {
                       <span>Utilizado {brl(d.creditoUtilizado)}</span>
                       <span>Limite {brl(d.limiteCredito)}</span>
                     </div>
+                    <EditorLimiteCredito
+                      codParc={parceiro.codParc}
+                      codEmp={d.codEmp}
+                      limiteAtual={d.limiteCredito}
+                    />
                     {d.creditoDevolucao > 0 && (
                       <p className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-xs text-sky-800">
                         Crédito de depósito/devolução disponível:{" "}
@@ -451,6 +486,126 @@ function FichaParceiro({ parceiro }: { parceiro: Parceiro }) {
             </TabsContent>
           </Tabs>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** Parceiro Matriz (TGFPAR.CODPARCMATRIZ): filiais apontam para a matriz
+ *  e a matriz lista suas filiais. */
+function ParceiroMatrizInfo({ parceiro }: { parceiro: Parceiro }) {
+  const parceiros = dbStore.useStore((s) => s.parceiros);
+  const abrir = useAbrirJanela();
+  const matriz = parceiro.codParcMatriz
+    ? parceiros.find((p) => p.codParc === parceiro.codParcMatriz)
+    : null;
+  const filiais = parceiros.filter((p) => p.codParcMatriz === parceiro.codParc);
+  if (!matriz && filiais.length === 0) return null;
+
+  return (
+    <div className="mt-4 border-b border-slate-100 pb-4 text-xs">
+      <p className="uppercase tracking-wider text-slate-400">Parceiro matriz</p>
+      {matriz ? (
+        <button
+          onClick={() =>
+            abrir({
+              id: `/parceiros/${matriz.codParc}`,
+              titulo: matriz.nomeFantasia,
+              icone: "parceiro",
+            })
+          }
+          className="mt-1 flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-slate-50/60 px-2.5 py-2 text-left transition-colors hover:border-green-300 hover:bg-green-50/40"
+        >
+          <span className="rounded bg-slate-200 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-600">
+            {matriz.codParc}
+          </span>
+          <span className="min-w-0 flex-1 truncate font-medium text-slate-800">
+            {matriz.razaoSocial}
+          </span>
+        </button>
+      ) : (
+        <p className="mt-1 font-medium text-slate-800">
+          Este parceiro é a matriz{filiais.length > 0 && ` de ${filiais.length} filial(is)`}:
+        </p>
+      )}
+      {filiais.length > 0 && (
+        <ul className="mt-1.5 space-y-1">
+          {filiais.map((f) => (
+            <li key={f.codParc}>
+              <button
+                onClick={() =>
+                  abrir({
+                    id: `/parceiros/${f.codParc}`,
+                    titulo: f.nomeFantasia,
+                    icone: "parceiro",
+                  })
+                }
+                className="flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-left transition-colors hover:border-green-300 hover:bg-green-50/40"
+              >
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-600">
+                  {f.codParc}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-slate-700">{f.razaoSocial}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Limite de crédito é parametrizado aqui, no Parceiro (estrutura
+ *  Sankhya — aba Crédito do Cadastro de Parceiros), por empresa. */
+function EditorLimiteCredito({
+  codParc,
+  codEmp,
+  limiteAtual,
+}: {
+  codParc: string;
+  codEmp: string;
+  limiteAtual: number;
+}) {
+  const { perfil } = usePermissoes();
+  const [valor, setValor] = useState<number | null>(null);
+  const podeEditar = !!perfil && (perfil.podeConfigurarLimites || perfil.podeAprovarLiberacoes);
+
+  const salvar = () => {
+    if (valor == null || valor === limiteAtual) {
+      setValor(null);
+      return;
+    }
+    atualizarLimiteCreditoParceiro(codParc, codEmp, valor);
+    toast.success("Limite de crédito atualizado", {
+      description: `${codParc} · ${codEmp}: ${brl(valor)}`,
+    });
+    setValor(null);
+  };
+
+  return (
+    <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2">
+      <div className="flex items-center gap-2 text-xs text-slate-600">
+        <Landmark className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+        <span>
+          Limite de crédito ({codEmp})
+          {!podeEditar && (
+            <span className="text-slate-400"> — ajuste restrito à gerência/administração</span>
+          )}
+        </span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs text-slate-400">R$</span>
+        <input
+          type="number"
+          min={0}
+          step={1000}
+          value={valor ?? limiteAtual}
+          disabled={!podeEditar}
+          onChange={(e) => setValor(Math.max(0, parseFloat(e.target.value) || 0))}
+          onBlur={salvar}
+          onKeyDown={(e) => e.key === "Enter" && salvar()}
+          className="w-28 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-right text-sm tabular-nums text-slate-900 outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 disabled:bg-slate-50 disabled:text-slate-500"
+        />
       </div>
     </div>
   );

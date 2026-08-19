@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Copy } from "lucide-react";
+import { Copy, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { delayOperacao } from "@/lib/mock";
 import type { Documento } from "@/lib/mock";
 import { duplicarOrcamento } from "@/lib/stores/db";
 import { useAbrirJanela } from "@/lib/stores/use-janelas";
@@ -31,13 +32,17 @@ export function DialogDuplicar({
   onOpenChange: (v: boolean) => void;
 }) {
   const [atualizarCadeia, setAtualizarCadeia] = useState(true);
+  const [duplicando, setDuplicando] = useState(false);
   const usuario = useUsuario();
   const abrir = useAbrirJanela();
 
   if (!doc) return null;
 
-  const confirmar = () => {
-    if (!usuario) return;
+  const confirmar = async () => {
+    if (!usuario || duplicando) return;
+    setDuplicando(true);
+    await delayOperacao(900, 2200);
+    setDuplicando(false);
     const novo = duplicarOrcamento(doc.nunota, atualizarCadeia, usuario);
     onOpenChange(false);
     if (novo == null) {
@@ -87,10 +92,18 @@ export function DialogDuplicar({
           </button>
           <button
             onClick={confirmar}
-            className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700"
+            disabled={duplicando}
+            className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-700 disabled:cursor-wait disabled:opacity-80"
           >
-            <Copy className="h-4 w-4" />
-            Duplicar
+            {duplicando ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Duplicando…
+              </>
+            ) : (
+              <>
+                <Copy className="h-4 w-4" /> Duplicar
+              </>
+            )}
           </button>
         </DialogFooter>
       </DialogContent>
